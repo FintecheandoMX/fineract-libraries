@@ -64,6 +64,7 @@ buildscript {
         fineractPublishProjects = subprojects.findAll{
             [
                 'fineract-avro-schemas',
+                'fineract-audit',
                 'fineract-client',
                 'fineract-client-feign',
                 'fineract-core',
