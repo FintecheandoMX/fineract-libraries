@@ -384,7 +384,6 @@ Versioned build products created from the `develop` branch will include `-SNAPSH
 
 LICENSE
 ============
-
 This project is licensed under [Apache License Version 2.0](https://github.com/apache/fineract/blob/develop/APACHE_LICENSETEXT.md).
 
 The Connector/J JDBC Driver client library from [MariaDB](https://www.mariadb.org) is licensed under the LGPL.
