@@ -161,7 +161,7 @@ gitVersioning.apply {
         }
     }
     rev {
-        version = '1.15.0'
+        version = '${describe.tag.version.major}.${describe.tag.version.minor.next}.0-SNAPSHOT'
     }
 }
 
