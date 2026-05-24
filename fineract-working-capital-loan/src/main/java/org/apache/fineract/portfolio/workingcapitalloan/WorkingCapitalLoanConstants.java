@@ -46,6 +46,9 @@ public final class WorkingCapitalLoanConstants {
     // Loan commands
     public static final String APPROVE_LOAN_COMMAND = "approve";
     public static final String DISBURSE_LOAN_COMMAND = "disburse";
+    public static final String REPAYMENT_LOAN_COMMAND = "repayment";
+    public static final String GOODWILL_CREDIT_LOAN_COMMAND = "goodwillCredit";
+    public static final String CREDIT_BALANCE_REFUND_COMMAND = "creditBalanceRefund";
 
     // Approval / Rejection / Undo-approval parameters
     public static final String RESOURCE_NAME = WCL_RESOURCE_NAME;
@@ -59,6 +62,11 @@ public final class WorkingCapitalLoanConstants {
     // Disbursal / Undo disbursal parameters
     public static final String actualDisbursementDateParamName = "actualDisbursementDate";
     public static final String transactionAmountParamName = "transactionAmount";
+    public static final String classificationIdParamName = "classificationId";
+
+    public static final String DISBURSEMENT_CLASSIFICATION_CODE_NAME = "working_capital_loan_disbursement_classification";
+    public static final String REPAYMENT_CLASSIFICATION_CODE_NAME = "working_capital_loan_repayment_classification";
+    public static final String CREDIT_BALANCE_REFUND_CLASSIFICATION_CODE_NAME = "working_capital_loan_credit_balance_refund_classification";
     public static final String paymentDetailsParamName = "paymentDetails";
     public static final String paymentTypeIdParamName = "paymentTypeId";
     public static final String accountNumberParamName = "accountNumber";
@@ -66,4 +74,16 @@ public final class WorkingCapitalLoanConstants {
     public static final String routingCodeParamName = "routingCode";
     public static final String receiptNumberParamName = "receiptNumber";
     public static final String bankNumberParamName = "bankNumber";
+    public static final String transactionDateParamName = "transactionDate";
+    public static final String transactionTypeParamName = "transactionType";
+
+    // Transaction parameters
+    public static final String relatedResourceIdParamName = "relatedResourceId";
+
+    public static final String WRITE_OFF_REASONS = "WriteOffReasons";
+    public static final String CHARGE_OFF_REASONS = "ChargeOffReasons";
+
+    // Period payment rate change parameters
+    public static final String periodPaymentRateParamName = "periodPaymentRate";
+    public static final String previousPeriodPaymentRateParamName = "previousRate";
 }

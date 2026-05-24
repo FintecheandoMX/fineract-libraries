@@ -35,6 +35,7 @@ import org.apache.fineract.client.models.PostWorkingCapitalLoansResponse;
 import org.apache.fineract.client.models.ProjectedAmortizationScheduleData;
 import org.apache.fineract.client.models.ProjectedAmortizationScheduleGenerateRequest;
 import org.apache.fineract.client.models.ProjectedAmortizationSchedulePaymentData;
+import org.apache.fineract.test.helper.WorkingCapitalScheduleMatcher;
 import org.apache.fineract.test.stepdef.AbstractStepDef;
 import org.apache.fineract.test.support.TestContext;
 import org.apache.fineract.test.support.TestContextKey;
@@ -48,14 +49,14 @@ public class WorkingCapitalAmortizationScheduleStepDef extends AbstractStepDef {
 
     private final FineractFeignClient fineractFeignClient;
 
-    @When("Admin generates a projected amortization schedule with originationFeeAmount {double}, netDisbursementAmount {double}, totalPaymentValue {double}, periodPaymentRate {double}, npvDayCount {int}, expectedDisbursementDate {string}")
-    public void generateAmortizationSchedule(final double originationFeeAmount, final double netDisbursementAmount,
+    @When("Admin generates a projected amortization schedule with discountFeeAmount {double}, netDisbursementAmount {double}, totalPaymentValue {double}, periodPaymentRate {double}, npvDayCount {int}, expectedDisbursementDate {string}")
+    public void generateAmortizationSchedule(final double discountFeeAmount, final double netDisbursementAmount,
             final double totalPaymentValue, final double periodPaymentRate, final int npvDayCount, final String expectedDisbursementDate) {
         final Long loanId = extractLoanId();
         final WorkingCapitalLoansApi api = fineractFeignClient.create(WorkingCapitalLoansApi.class);
 
         final ProjectedAmortizationScheduleGenerateRequest request = new ProjectedAmortizationScheduleGenerateRequest();
-        request.setOriginationFeeAmount(BigDecimal.valueOf(originationFeeAmount));
+        request.setDiscountFeeAmount(BigDecimal.valueOf(discountFeeAmount));
         request.setNetDisbursementAmount(BigDecimal.valueOf(netDisbursementAmount));
         request.setTotalPaymentValue(BigDecimal.valueOf(totalPaymentValue));
         request.setPeriodPaymentRate(BigDecimal.valueOf(periodPaymentRate));
@@ -93,13 +94,13 @@ public class WorkingCapitalAmortizationScheduleStepDef extends AbstractStepDef {
         final Map<String, String> expected = dataTable.asMaps().getFirst();
         final SoftAssertions assertions = new SoftAssertions();
 
-        assertDecimal(assertions, "originationFeeAmount", response.getOriginationFeeAmount(), expected.get("originationFeeAmount"));
+        assertDecimal(assertions, "discountFeeAmount", response.getDiscountFeeAmount(), expected.get("discountFeeAmount"));
         assertDecimal(assertions, "netDisbursementAmount", response.getNetDisbursementAmount(), expected.get("netDisbursementAmount"));
         assertDecimal(assertions, "totalPaymentValue", response.getTotalPaymentValue(), expected.get("totalPaymentValue"));
         assertDecimal(assertions, "periodPaymentRate", response.getPeriodPaymentRate(), expected.get("periodPaymentRate"));
         assertInt(assertions, "npvDayCount", response.getNpvDayCount(), expected.get("npvDayCount"));
         assertDecimal(assertions, "expectedPaymentAmount", response.getExpectedPaymentAmount(), expected.get("expectedPaymentAmount"));
-        assertInt(assertions, "loanTerm", response.getLoanTerm(), expected.get("loanTerm"));
+        assertInt(assertions, "originalPaymentNumber", response.getOriginalPaymentNumber(), expected.get("originalPaymentNumber"));
 
         assertions.assertAll();
     }
@@ -122,18 +123,13 @@ public class WorkingCapitalAmortizationScheduleStepDef extends AbstractStepDef {
 
             assertInt(assertions, p + "paymentNo", actual.getPaymentNo(), expected.get("paymentNo"));
             assertDate(assertions, p + "date", actual.getPaymentDate(), expected.get("date"));
-            assertLong(assertions, p + "paymentsLeft", actual.getPaymentsLeft(), expected.get("paymentsLeft"));
             assertNullableDecimal(assertions, p + "expectedPaymentAmount", actual.getExpectedPaymentAmount(),
                     expected.get("expectedPaymentAmount"));
-            assertNullableDecimal(assertions, p + "forecastPaymentAmount", actual.getForecastPaymentAmount(),
-                    expected.get("forecastPaymentAmount"));
             assertOptionalDecimal(assertions, p + "discountFactor", actual.getDiscountFactor(), expected.get("discountFactor"));
             assertNullableDecimal(assertions, p + "npvValue", actual.getNpvValue(), expected.get("npvValue"));
             assertNullableDecimal(assertions, p + "balance", actual.getBalance(), expected.get("balance"));
             assertNullableDecimal(assertions, p + "expectedAmortizationAmount", actual.getExpectedAmortizationAmount(),
                     expected.get("expectedAmortizationAmount"));
-            assertNullableDecimal(assertions, p + "netAmortizationAmount", actual.getNetAmortizationAmount(),
-                    expected.get("netAmortizationAmount"));
             assertNullableDecimal(assertions, p + "actualPaymentAmount", actual.getActualPaymentAmount(),
                     expected.get("actualPaymentAmount"));
             assertNullableDecimal(assertions, p + "actualAmortizationAmount", actual.getActualAmortizationAmount(),
@@ -147,19 +143,16 @@ public class WorkingCapitalAmortizationScheduleStepDef extends AbstractStepDef {
 
     private static void assertDecimal(final SoftAssertions assertions, final String field, final BigDecimal actual,
             final String expectedStr) {
-        if (expectedStr == null || expectedStr.isBlank()) {
+        if (WorkingCapitalScheduleMatcher.isBlank(expectedStr)) {
             return;
         }
-        final BigDecimal expected = new BigDecimal(expectedStr);
-        assertions.assertThat(actual).as(field).isNotNull();
-        if (actual != null) {
-            assertions.assertThat(actual.compareTo(expected)).as("%s: expected=%s actual=%s", field, expected, actual).isEqualTo(0);
-        }
+        assertions.assertThat(WorkingCapitalScheduleMatcher.matchesDecimal(actual, expectedStr))
+                .as("%s: expected=%s actual=%s", field, expectedStr, actual).isTrue();
     }
 
     private static void assertNullableDecimal(final SoftAssertions assertions, final String field, final BigDecimal actual,
             final String expectedStr) {
-        if (expectedStr == null || expectedStr.isBlank()) {
+        if (WorkingCapitalScheduleMatcher.isBlank(expectedStr)) {
             assertions.assertThat(actual).as(field + " should be null").isNull();
             return;
         }
@@ -167,29 +160,22 @@ public class WorkingCapitalAmortizationScheduleStepDef extends AbstractStepDef {
     }
 
     private static void assertInt(final SoftAssertions assertions, final String field, final Integer actual, final String expectedStr) {
-        if (expectedStr == null || expectedStr.isBlank()) {
+        if (WorkingCapitalScheduleMatcher.isBlank(expectedStr)) {
             return;
         }
-        assertions.assertThat(actual).as(field).isEqualTo(Integer.parseInt(expectedStr));
-    }
-
-    private static void assertLong(final SoftAssertions assertions, final String field, final Long actual, final String expectedStr) {
-        if (expectedStr == null || expectedStr.isBlank()) {
-            return;
-        }
-        assertions.assertThat(actual).as(field).isEqualTo(Long.parseLong(expectedStr));
+        assertions.assertThat(WorkingCapitalScheduleMatcher.matchesInteger(actual, expectedStr)).as(field).isTrue();
     }
 
     private static void assertDate(final SoftAssertions assertions, final String field, final LocalDate actual, final String expectedStr) {
-        if (expectedStr == null || expectedStr.isBlank()) {
+        if (WorkingCapitalScheduleMatcher.isBlank(expectedStr)) {
             return;
         }
-        assertions.assertThat(actual).as(field).isEqualTo(LocalDate.parse(expectedStr));
+        assertions.assertThat(WorkingCapitalScheduleMatcher.matchesDate(actual, expectedStr)).as(field).isTrue();
     }
 
     private static void assertOptionalDecimal(final SoftAssertions assertions, final String field, final BigDecimal actual,
             final String expectedStr) {
-        if (expectedStr == null || expectedStr.isBlank()) {
+        if (WorkingCapitalScheduleMatcher.isBlank(expectedStr)) {
             assertions.assertThat(actual).as(field + " should not be null").isNotNull();
             return;
         }

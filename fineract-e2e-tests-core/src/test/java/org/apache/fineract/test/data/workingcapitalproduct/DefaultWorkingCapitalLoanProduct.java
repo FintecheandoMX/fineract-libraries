@@ -21,7 +21,18 @@ package org.apache.fineract.test.data.workingcapitalproduct;
 public enum DefaultWorkingCapitalLoanProduct implements WorkingCapitalLoanProduct {
 
     WCLP, //
-    WCLP_FOR_UPDATE; //
+    WCLP_DISCOUNT, //
+    WCLP_DISALLOW_ATTRIBUTES_OVERRIDE, //
+    WCLP_DISCOUNT_DISALLOW_ATTRIBUTES_OVERRIDE, //
+    WCLP_FOR_UPDATE, //
+    WCLP_DELINQUENCY_RESCHEDULE, //
+    WCLP_BREACH, //
+    WCLP_BREACH_NEAR_BREACH, //
+    WCLP_BREACH_DISALLOW_ATTRIBUTES_OVERRIDE, //
+    WCLP_BREACH_NEAR_BREACH_DISALLOW_ATTRIBUTES_OVERRIDE, //
+    WCLP_ADVANCED_ACCOUNTING, //
+    WCLP_ACCOUNTING_CASH_BASED, //
+    WCLP_PERIOD_PAYMENT_RATE; //
 
     @Override
     public String getName() {

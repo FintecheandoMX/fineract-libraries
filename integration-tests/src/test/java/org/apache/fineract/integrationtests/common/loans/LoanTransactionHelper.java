@@ -155,6 +155,10 @@ public class LoanTransactionHelper {
         this.paymentTypeHelper = new PaymentTypeHelper();
     }
 
+    public static LocalDate getMaxTransactionDateOfActiveLoans() {
+        return Calls.ok(FineractClientHelper.getFineractClient().legacy.getMaxTransactionDateOfActiveLoans());
+    }
+
     // TODO: Rewrite to use fineract-client instead!
     // Example: org.apache.fineract.integrationtests.common.loans.LoanTransactionHelper.disburseLoan(java.lang.Long,
     // org.apache.fineract.client.models.PostLoansLoanIdRequest)
@@ -938,7 +942,7 @@ public class LoanTransactionHelper {
 
     public Response<CommandProcessingResult> createInterestPause(Long loanId, String startDate, String endDate) {
         log.info("Creating interest pause for Loan {} from {} to {}", loanId, startDate, endDate);
-        return Calls.executeU(FineractClientHelper.getFineractClient().loanInterestPauseApi.createInterestPause(loanId,
+        return Calls.executeU(FineractClientHelper.getFineractClient().loanInterestPauseApi.createLoanInterestPause(loanId,
                 new InterestPauseRequestDto().startDate(startDate).endDate(endDate).dateFormat(DATE_FORMAT).locale("en")));
     }
 
@@ -2970,6 +2974,10 @@ public class LoanTransactionHelper {
 
     public PostLoansLoanIdResponse rejectLoan(Long loanId, PostLoansLoanIdRequest request) {
         return Calls.ok(FineractClientHelper.getFineractClient().loans.stateTransitions(loanId, request, "reject"));
+    }
+
+    public PostLoansLoanIdResponse withdrawnByApplicantLoan(Long loanId, PostLoansLoanIdRequest request) {
+        return Calls.ok(FineractClientHelper.getFineractClient().loans.stateTransitions(loanId, request, "withdrawnByApplicant"));
     }
 
     public PostLoansLoanIdResponse withdrawnByApplicantLoan(String loanExternalId, PostLoansLoanIdRequest request) {

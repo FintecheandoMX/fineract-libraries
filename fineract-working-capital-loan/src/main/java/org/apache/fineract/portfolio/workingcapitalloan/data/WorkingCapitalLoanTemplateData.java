@@ -28,6 +28,8 @@ import lombok.Setter;
 import org.apache.fineract.infrastructure.core.data.StringEnumOptionData;
 import org.apache.fineract.portfolio.delinquency.data.DelinquencyBucketData;
 import org.apache.fineract.portfolio.fund.data.FundData;
+import org.apache.fineract.portfolio.workingcapitalloanbreach.data.WorkingCapitalBreachData;
+import org.apache.fineract.portfolio.workingcapitalloannearbreach.data.WorkingCapitalNearBreachData;
 import org.apache.fineract.portfolio.workingcapitalloanproduct.data.WorkingCapitalLoanProductData;
 
 /**
@@ -47,4 +49,7 @@ public class WorkingCapitalLoanTemplateData {
     private Collection<DelinquencyBucketData> delinquencyBucketOptions;
     private List<StringEnumOptionData> periodFrequencyTypeOptions;
     private List<StringEnumOptionData> delinquencyStartTypeOptions;
+    private List<WorkingCapitalBreachData> breachOptions;
+    private List<StringEnumOptionData> delinquencyMinimumPaymentTypeOptions;
+    private List<WorkingCapitalNearBreachData> nearBreachOptions;
 }

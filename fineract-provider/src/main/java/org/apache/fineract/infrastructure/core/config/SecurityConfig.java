@@ -45,6 +45,7 @@ import org.apache.fineract.infrastructure.security.filter.TenantAwareBasicAuthen
 import org.apache.fineract.infrastructure.security.filter.TwoFactorAuthenticationFilter;
 import org.apache.fineract.infrastructure.security.service.AuthTenantDetailsService;
 import org.apache.fineract.infrastructure.security.service.PlatformUserDetailsChecker;
+import org.apache.fineract.infrastructure.security.service.TemporaryPasswordAwareAuthenticationProvider;
 import org.apache.fineract.infrastructure.security.service.TenantAwareJpaPlatformUserDetailsService;
 import org.apache.fineract.infrastructure.security.service.TwoFactorService;
 import org.apache.fineract.notification.service.UserNotificationService;
@@ -134,6 +135,7 @@ public class SecurityConfig {
             auth.requestMatchers(API_MATCHER.matcher(HttpMethod.OPTIONS, "/api/**")).permitAll()
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/echo")).permitAll()
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/authentication")).permitAll()
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/password/forgot")).permitAll()
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.PUT, "/api/*/instance-mode")).permitAll()
                     // businessdate
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/businessdate/*"))
@@ -271,6 +273,19 @@ public class SecurityConfig {
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_CLIENTIMAGE")
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/clients/*/images"))
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_CLIENTIMAGE")
+                    // collateral: clients
+                    // NOTE: the "_CLIENT_COLLATERAL_PRODUCT" suffix is the legacy permission naming kept for
+                    // backwards compatibility (entity_name = CLIENT_COLLATERAL_PRODUCT in the permission table)
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/clients/*/collaterals"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_CLIENT_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/clients/*/collaterals/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_CLIENT_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/clients/*/collaterals"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "CREATE_CLIENT_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.PUT, "/api/*/clients/*/collaterals/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_CLIENT_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/clients/*/collaterals/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_CLIENT_COLLATERAL_PRODUCT")
                     // image: staff
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/staff/*/images"))
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_DOCUMENT")
@@ -280,6 +295,19 @@ public class SecurityConfig {
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_STAFFIMAGE")
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/staff/*/images"))
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_STAFFIMAGE")
+                    // collateral: products
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/collateral-management"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/collateral-management/template"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/collateral-management/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/collateral-management"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "CREATE_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.PUT, "/api/*/collateral-management/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_COLLATERAL_PRODUCT")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/collateral-management/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_COLLATERAL_PRODUCT")
                     // bulk import
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/import"))
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_IMPORT")
@@ -363,6 +391,27 @@ public class SecurityConfig {
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_MEETING")
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/*/*/meeting/*"))
                     .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_MEETING")
+                    // hook
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/hooks/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_HOOK")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/hooks/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "CREATE_HOOK")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.PUT, "/api/*/hooks/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_HOOK")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/hooks/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_HOOK")
+                    // template
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.GET, "/api/*/templates/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_READ, "READ_TEMPLATE")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/templates/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "CREATE_TEMPLATE")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.PUT, "/api/*/templates/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "UPDATE_TEMPLATE")
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/templates/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_TEMPLATE")
+
+                    .requestMatchers(API_MATCHER.matcher(HttpMethod.DELETE, "/api/*/loan-collateral-management/*"))
+                    .hasAnyAuthority(ALL_FUNCTIONS, ALL_FUNCTIONS_WRITE, "DELETE_LOAN_COLLATERAL_PRODUCT")
 
                     .requestMatchers(API_MATCHER.matcher(HttpMethod.POST, "/api/*/twofactor/validate")).fullyAuthenticated()
                     .requestMatchers(API_MATCHER.matcher("/api/*/twofactor")).fullyAuthenticated()
@@ -453,7 +502,7 @@ public class SecurityConfig {
 
     @Bean(name = "customAuthenticationProvider")
     public DaoAuthenticationProvider authProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        DaoAuthenticationProvider authProvider = new TemporaryPasswordAwareAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         authProvider.setPostAuthenticationChecks(platformUserDetailsChecker);

@@ -29,6 +29,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.fineract.client.feign.ObjectMapperFactory;
 import org.apache.fineract.client.models.PostWorkingCapitalLoanProductsRequest;
+import org.apache.fineract.client.models.PostWorkingCapitalLoanProductsRequest.AccountingRuleEnum;
 import org.apache.fineract.client.models.PutWorkingCapitalLoanProductsProductIdRequest;
 import org.apache.fineract.portfolio.workingcapitalloan.domain.WorkingCapitalLoanPeriodFrequencyType;
 import org.apache.fineract.portfolio.workingcapitalloanproduct.domain.WorkingCapitalAmortizationType;
@@ -47,7 +48,9 @@ public class WorkingCapitalLoanProductTestBuilder {
     private static final BigDecimal DEFAULT_PERIOD_PAYMENT_RATE = BigDecimal.valueOf(1.0);
     private static final Integer DEFAULT_PERIOD_PAYMENT_FREQUENCY = 30;
     private static final String DEFAULT_PERIOD_PAYMENT_FREQUENCY_TYPE = WorkingCapitalLoanPeriodFrequencyType.DAYS.name();
-    private static final List<String> DEFAULT_PAYMENT_ALLOCATION_TYPES = List.of("PENALTY", "FEE", "PRINCIPAL");
+    private static final List<String> DEFAULT_PAYMENT_ALLOCATION_TYPES = List.of("DUE_PENALTY", "DUE_FEE", "DUE_PRINCIPAL",
+            "IN_ADVANCE_PENALTY", "IN_ADVANCE_FEE", "IN_ADVANCE_PRINCIPAL");
+    private static final AccountingRuleEnum DEFAULT_ACCOUNTING_RULE = AccountingRuleEnum.NONE;
 
     private String name = DEFAULT_NAME;
     private String shortName = DEFAULT_SHORT_NAME;
@@ -69,10 +72,27 @@ public class WorkingCapitalLoanProductTestBuilder {
     private BigDecimal discount;
     private Integer repaymentEvery = DEFAULT_PERIOD_PAYMENT_FREQUENCY;
     private String repaymentFrequencyType = DEFAULT_PERIOD_PAYMENT_FREQUENCY_TYPE;
+    private Long breachId;
     private List<String> paymentAllocationTypes = DEFAULT_PAYMENT_ALLOCATION_TYPES;
     private Map<String, Boolean> allowAttributeOverrides;
     private Integer delinquencyGraceDays;
     private String delinquencyStartType;
+    private AccountingRuleEnum accountingRule = DEFAULT_ACCOUNTING_RULE;
+    private Long nearBreachId;
+
+    // GL account IDs for cash-based accounting
+    private Long fundSourceAccountId;
+    private Long loanPortfolioAccountId;
+    private Long transfersInSuspenseAccountId;
+    private Long incomeFromDiscountFeeAccountId;
+    private Long receivableFeeAccountId;
+    private Long receivablePenaltyAccountId;
+    private Long incomeFromFeeAccountId;
+    private Long incomeFromPenaltyAccountId;
+    private Long incomeFromRecoveryAccountId;
+    private Long writeOffAccountId;
+    private Long overpaymentLiabilityAccountId;
+    private Long deferredIncomeLiabilityAccountId;
 
     public WorkingCapitalLoanProductTestBuilder withName(final String name) {
         this.name = name;
@@ -179,6 +199,16 @@ public class WorkingCapitalLoanProductTestBuilder {
         return this;
     }
 
+    public WorkingCapitalLoanProductTestBuilder withBreachId(final Long breachId) {
+        this.breachId = breachId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withNearBreachId(final Long nearBreachId) {
+        this.nearBreachId = nearBreachId;
+        return this;
+    }
+
     public WorkingCapitalLoanProductTestBuilder withAllowAttributeOverrides(final Map<String, Boolean> allowAttributeOverrides) {
         this.allowAttributeOverrides = allowAttributeOverrides;
         return this;
@@ -191,6 +221,71 @@ public class WorkingCapitalLoanProductTestBuilder {
 
     public WorkingCapitalLoanProductTestBuilder withDelinquencyStartType(final String delinquencyStartType) {
         this.delinquencyStartType = delinquencyStartType;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withAccountingRule(final AccountingRuleEnum accountingRule) {
+        this.accountingRule = accountingRule;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withFundSourceAccountId(final Long fundSourceAccountId) {
+        this.fundSourceAccountId = fundSourceAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withLoanPortfolioAccountId(final Long loanPortfolioAccountId) {
+        this.loanPortfolioAccountId = loanPortfolioAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withTransfersInSuspenseAccountId(final Long transfersInSuspenseAccountId) {
+        this.transfersInSuspenseAccountId = transfersInSuspenseAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withIncomeFromDiscountFeeAccountId(final Long incomeFromDiscountFeeAccountId) {
+        this.incomeFromDiscountFeeAccountId = incomeFromDiscountFeeAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withReceivableFeeAccountId(final Long receivableFeeAccountId) {
+        this.receivableFeeAccountId = receivableFeeAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withReceivablePenaltyAccountId(final Long receivablePenaltyAccountId) {
+        this.receivablePenaltyAccountId = receivablePenaltyAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withIncomeFromFeeAccountId(final Long incomeFromFeeAccountId) {
+        this.incomeFromFeeAccountId = incomeFromFeeAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withIncomeFromPenaltyAccountId(final Long incomeFromPenaltyAccountId) {
+        this.incomeFromPenaltyAccountId = incomeFromPenaltyAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withIncomeFromRecoveryAccountId(final Long incomeFromRecoveryAccountId) {
+        this.incomeFromRecoveryAccountId = incomeFromRecoveryAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withWriteOffAccountId(final Long writeOffAccountId) {
+        this.writeOffAccountId = writeOffAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withOverpaymentLiabilityAccountId(final Long overpaymentLiabilityAccountId) {
+        this.overpaymentLiabilityAccountId = overpaymentLiabilityAccountId;
+        return this;
+    }
+
+    public WorkingCapitalLoanProductTestBuilder withDeferredIncomeLiabilityAccountId(final Long deferredIncomeLiabilityAccountId) {
+        this.deferredIncomeLiabilityAccountId = deferredIncomeLiabilityAccountId;
         return this;
     }
 
@@ -238,6 +333,21 @@ public class WorkingCapitalLoanProductTestBuilder {
         }
         request.setDelinquencyGraceDays(this.delinquencyGraceDays);
         request.setDelinquencyStartType(this.delinquencyStartType);
+        request.setBreachId(this.breachId);
+        request.setAccountingRule(this.accountingRule);
+        request.setNearBreachId(this.nearBreachId);
+        request.setFundSourceAccountId(this.fundSourceAccountId);
+        request.setLoanPortfolioAccountId(this.loanPortfolioAccountId);
+        request.setTransfersInSuspenseAccountId(this.transfersInSuspenseAccountId);
+        request.setIncomeFromDiscountFeeAccountId(this.incomeFromDiscountFeeAccountId);
+        request.setReceivableFeeAccountId(this.receivableFeeAccountId);
+        request.setReceivablePenaltyAccountId(this.receivablePenaltyAccountId);
+        request.setIncomeFromFeeAccountId(this.incomeFromFeeAccountId);
+        request.setIncomeFromPenaltyAccountId(this.incomeFromPenaltyAccountId);
+        request.setIncomeFromRecoveryAccountId(this.incomeFromRecoveryAccountId);
+        request.setWriteOffAccountId(this.writeOffAccountId);
+        request.setOverpaymentLiabilityAccountId(this.overpaymentLiabilityAccountId);
+        request.setDeferredIncomeLiabilityAccountId(this.deferredIncomeLiabilityAccountId);
         request.setLocale("en_US");
         request.setDateFormat("yyyy-MM-dd");
     }
@@ -269,6 +379,11 @@ public class WorkingCapitalLoanProductTestBuilder {
         }
         request.setDelinquencyGraceDays(this.delinquencyGraceDays);
         request.setDelinquencyStartType(this.delinquencyStartType);
+        request.setBreachId(this.breachId);
+        if (this.accountingRule != null) {
+            request.setAccountingRule(PutWorkingCapitalLoanProductsProductIdRequest.AccountingRuleEnum.valueOf(this.accountingRule.name()));
+        }
+        request.setNearBreachId(this.nearBreachId);
         request.setLocale("en_US");
         request.setDateFormat("yyyy-MM-dd");
     }

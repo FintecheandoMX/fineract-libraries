@@ -23,16 +23,26 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.apache.fineract.accounting.glaccount.data.GLAccountData;
+import org.apache.fineract.accounting.producttoaccountmapping.data.AdvancedMappingToExpenseAccountData;
+import org.apache.fineract.accounting.producttoaccountmapping.data.ChargeToGLAccountMapper;
+import org.apache.fineract.accounting.producttoaccountmapping.data.PaymentTypeToGLAccountMapper;
+import org.apache.fineract.infrastructure.codes.data.CodeValueData;
 import org.apache.fineract.infrastructure.core.data.EnumOptionData;
 import org.apache.fineract.infrastructure.core.data.StringEnumOptionData;
 import org.apache.fineract.organisation.monetary.data.CurrencyData;
+import org.apache.fineract.portfolio.charge.data.ChargeData;
 import org.apache.fineract.portfolio.delinquency.data.DelinquencyBucketData;
 import org.apache.fineract.portfolio.fund.data.FundData;
+import org.apache.fineract.portfolio.paymenttype.data.PaymentTypeData;
+import org.apache.fineract.portfolio.workingcapitalloanbreach.data.WorkingCapitalBreachData;
+import org.apache.fineract.portfolio.workingcapitalloannearbreach.data.WorkingCapitalNearBreachData;
 
 /**
  * Data Transfer Object for Working Capital Loan Product.
@@ -61,8 +71,10 @@ public class WorkingCapitalLoanProductData implements Serializable {
     // Settings details
     private StringEnumOptionData amortizationType;
     private DelinquencyBucketData delinquencyBucket;
+    private WorkingCapitalBreachData breach;
     private Integer npvDayCount;
     private List<WorkingCapitalPaymentAllocationData> paymentAllocation;
+    private WorkingCapitalNearBreachData nearBreach;
 
     // Term details
     private BigDecimal minPrincipal;
@@ -80,15 +92,34 @@ public class WorkingCapitalLoanProductData implements Serializable {
     // Configurable attributes (allowAttributeOverrides)
     private WorkingCapitalLoanProductConfigurableAttributesData allowAttributeOverrides;
 
+    // Accounting
+    private StringEnumOptionData accountingRule;
+    private Map<String, GLAccountData> accountingMappings;
+    private Collection<PaymentTypeToGLAccountMapper> paymentChannelToFundSourceMappings;
+    private Collection<ChargeToGLAccountMapper> feeToIncomeAccountMappings;
+    private Collection<ChargeToGLAccountMapper> penaltyToIncomeAccountMappings;
+    private List<AdvancedMappingToExpenseAccountData> chargeOffReasonToExpenseAccountMappings;
+    private List<AdvancedMappingToExpenseAccountData> writeOffReasonsToExpenseMappings;
+
     // Template related
     private Collection<FundData> fundOptions;
+    private Collection<PaymentTypeData> paymentTypeOptions;
+    private Collection<ChargeData> chargeOptions;
+    private Collection<ChargeData> penaltyOptions;
     private Collection<CurrencyData> currencyOptions;
     private List<StringEnumOptionData> amortizationTypeOptions;
     private List<StringEnumOptionData> periodFrequencyTypeOptions;
     private List<StringEnumOptionData> advancedPaymentAllocationTypes;
     private List<StringEnumOptionData> delinquencyStartTypeOptions;
+    private List<StringEnumOptionData> delinquencyMinimumPaymentTypeOptions;
     private List<EnumOptionData> advancedPaymentAllocationTransactionTypes;
     private Collection<DelinquencyBucketData> delinquencyBucketOptions;
+    private List<WorkingCapitalBreachData> breachOptions;
+    private List<StringEnumOptionData> accountingRuleOptions;
+    private Map<String, List<GLAccountData>> accountingMappingOptions;
+    private List<WorkingCapitalNearBreachData> nearBreachOptions;
+    private List<CodeValueData> chargeOffReasonOptions;
+    private List<CodeValueData> writeOffReasonOptions;
 
     public WorkingCapitalLoanProductData applyTemplate(final WorkingCapitalLoanProductData productTemplate) {
         setFundOptions(productTemplate.getFundOptions());
@@ -98,7 +129,17 @@ public class WorkingCapitalLoanProductData implements Serializable {
         setAdvancedPaymentAllocationTransactionTypes(productTemplate.getAdvancedPaymentAllocationTransactionTypes());
         setAdvancedPaymentAllocationTypes(productTemplate.getAdvancedPaymentAllocationTypes());
         setDelinquencyBucketOptions(productTemplate.getDelinquencyBucketOptions());
+        setBreachOptions(productTemplate.getBreachOptions());
         setDelinquencyStartTypeOptions(productTemplate.getDelinquencyStartTypeOptions());
+        setAccountingRuleOptions(productTemplate.getAccountingRuleOptions());
+        setAccountingMappingOptions(productTemplate.getAccountingMappingOptions());
+        setPaymentTypeOptions(productTemplate.getPaymentTypeOptions());
+        setChargeOptions(productTemplate.getChargeOptions());
+        setPenaltyOptions(productTemplate.getPenaltyOptions());
+        setChargeOffReasonOptions(productTemplate.getChargeOffReasonOptions());
+        setWriteOffReasonOptions(productTemplate.getWriteOffReasonOptions());
+        setDelinquencyMinimumPaymentTypeOptions(productTemplate.getDelinquencyMinimumPaymentTypeOptions());
+        setNearBreachOptions(productTemplate.getNearBreachOptions());
         return this;
     }
 }

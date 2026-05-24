@@ -27,11 +27,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.fineract.avro.loan.v1.LoanTransactionAdjustmentDataV1;
+import org.apache.fineract.avro.loan.v1.LoanTransactionDataV1;
 import org.apache.fineract.avro.loan.v1.OriginatorDetailsV1;
 import org.apache.fineract.client.feign.FineractFeignClient;
 import org.apache.fineract.client.feign.util.CallFailedRuntimeException;
@@ -41,11 +45,14 @@ import org.apache.fineract.client.models.GetLoanOriginatorTemplateResponse;
 import org.apache.fineract.client.models.GetLoanOriginatorsResponse;
 import org.apache.fineract.client.models.GetLoansLoanIdOriginatorData;
 import org.apache.fineract.client.models.GetLoansLoanIdResponse;
+import org.apache.fineract.client.models.GetLoansLoanIdTransactions;
 import org.apache.fineract.client.models.PostClientsResponse;
 import org.apache.fineract.client.models.PostLoanOriginatorsRequest;
 import org.apache.fineract.client.models.PostLoanOriginatorsResponse;
 import org.apache.fineract.client.models.PostLoansLoanIdRequest;
 import org.apache.fineract.client.models.PostLoansLoanIdResponse;
+import org.apache.fineract.client.models.PostLoansLoanIdTransactionsResponse;
+import org.apache.fineract.client.models.PostLoansLoanIdTransactionsTransactionIdRequest;
 import org.apache.fineract.client.models.PostLoansOriginatorData;
 import org.apache.fineract.client.models.PostLoansRequest;
 import org.apache.fineract.client.models.PostLoansResponse;
@@ -56,30 +63,29 @@ import org.apache.fineract.test.factory.LoanRequestFactory;
 import org.apache.fineract.test.helper.ErrorMessageHelper;
 import org.apache.fineract.test.messaging.EventAssertion;
 import org.apache.fineract.test.messaging.event.loan.LoanApprovedEvent;
+import org.apache.fineract.test.messaging.event.loan.delinquency.LoanDelinquencyRangeChangeEvent;
+import org.apache.fineract.test.messaging.event.loan.repayment.LoanRepaymentDueEvent;
+import org.apache.fineract.test.messaging.event.loan.transaction.LoanAccrualTransactionCreatedBusinessEvent;
+import org.apache.fineract.test.messaging.event.loan.transaction.LoanAdjustTransactionBusinessEvent;
 import org.apache.fineract.test.messaging.store.EventStore;
 import org.apache.fineract.test.stepdef.AbstractStepDef;
 import org.apache.fineract.test.support.TestContextKey;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @Slf4j
+@RequiredArgsConstructor
 public class LoanOriginationStepDef extends AbstractStepDef {
 
     private static final long NON_EXISTENT_ID = Long.MAX_VALUE;
+    private static final String DATE_FORMAT = "dd MMMM yyyy";
+    private static final String DEFAULT_LOCALE = "en";
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(DATE_FORMAT);
+    private static final String ADJUSTED_TRANSACTION_ID = "adjustedTransactionId";
 
-    @Autowired
-    private FineractFeignClient fineractClient;
-
-    @Autowired
-    private LoanRequestFactory loanRequestFactory;
-
-    @Autowired
-    private EventAssertion eventAssertion;
-
-    @Autowired
-    private EventStore eventStore;
-
-    @Autowired
-    private ApiProperties apiProperties;
+    private final FineractFeignClient fineractClient;
+    private final LoanRequestFactory loanRequestFactory;
+    private final EventAssertion eventAssertion;
+    private final EventStore eventStore;
+    private final ApiProperties apiProperties;
 
     // --- Originator CRUD steps ---
 
@@ -438,7 +444,7 @@ public class LoanOriginationStepDef extends AbstractStepDef {
         long loanId = getLoanId();
         eventStore.reset();
 
-        PostLoansLoanIdRequest approveRequest = LoanRequestFactory.defaultLoanApproveRequest().approvedOnDate(approveDate)
+        PostLoansLoanIdRequest approveRequest = loanRequestFactory.defaultLoanApproveRequest().approvedOnDate(approveDate)
                 .approvedLoanAmount(new BigDecimal(approvedAmount)).expectedDisbursementDate(expectedDisbursementDate);
 
         PostLoansLoanIdResponse loanApproveResponse = ok(
@@ -603,6 +609,256 @@ public class LoanOriginationStepDef extends AbstractStepDef {
         log.info("Deleting originator {} failed with expected status {}", originatorId, expectedStatus);
     }
 
+    @When("Customer makes a repayment undo on {string} without event check")
+    public void makeLoanRepaymentUndoWithoutEventCheck(String transactionDate) {
+        eventStore.reset();
+        PostLoansResponse loanResponse = testContext().get(TestContextKey.LOAN_CREATE_RESPONSE);
+        long loanId = loanResponse.getLoanId();
+        PostLoansLoanIdTransactionsResponse repaymentResponse = testContext().get(TestContextKey.LOAN_REPAYMENT_RESPONSE);
+        Long originalTransactionId = repaymentResponse.getResourceId();
+
+        PostLoansLoanIdTransactionsTransactionIdRequest repaymentUndoRequest = loanRequestFactory.defaultRepaymentUndoRequest()
+                .transactionDate(transactionDate).dateFormat(DATE_FORMAT).locale(DEFAULT_LOCALE);
+
+        ok(() -> fineractClient.loanTransactions().adjustLoanTransaction(loanId, originalTransactionId, repaymentUndoRequest,
+                Map.<String, Object>of()));
+        testContext().set(ADJUSTED_TRANSACTION_ID, originalTransactionId);
+        log.info("Repayment {} undo on loan {} (event check skipped for separate originator verification)", originalTransactionId, loanId);
+    }
+
+    @When("Customer adjusts the repayment on {string} to {double} EUR without event check")
+    public void adjustLoanRepaymentWithoutEventCheck(String transactionDate, double transactionAmount) {
+        eventStore.reset();
+        PostLoansResponse loanResponse = testContext().get(TestContextKey.LOAN_CREATE_RESPONSE);
+        long loanId = loanResponse.getLoanId();
+        PostLoansLoanIdTransactionsResponse repaymentResponse = testContext().get(TestContextKey.LOAN_REPAYMENT_RESPONSE);
+        Long originalTransactionId = repaymentResponse.getResourceId();
+
+        PostLoansLoanIdTransactionsTransactionIdRequest repaymentAdjustRequest = loanRequestFactory
+                .defaultRepaymentAdjustRequest(transactionAmount).transactionDate(transactionDate).dateFormat(DATE_FORMAT)
+                .locale(DEFAULT_LOCALE);
+
+        PostLoansLoanIdTransactionsResponse repaymentAdjustmentResponse = ok(() -> fineractClient.loanTransactions()
+                .adjustLoanTransaction(loanId, originalTransactionId, repaymentAdjustRequest, Map.<String, Object>of()));
+        testContext().set(TestContextKey.LOAN_REPAYMENT_UNDO_RESPONSE, repaymentAdjustmentResponse);
+        testContext().set(ADJUSTED_TRANSACTION_ID, originalTransactionId);
+        log.info("Repayment {} adjusted to {} on loan {} (event check skipped for separate originator verification)", originalTransactionId,
+                transactionAmount, loanId);
+    }
+
+    @When("Customer reverses the waiver transaction on {string}")
+    public void reverseWaiverTransaction(String transactionDate) {
+        eventStore.reset();
+        PostLoansResponse loanResponse = testContext().get(TestContextKey.LOAN_CREATE_RESPONSE);
+        long loanId = loanResponse.getLoanId();
+
+        GetLoansLoanIdResponse loanDetails = ok(
+                () -> fineractClient.loans().retrieveLoan(loanId, Map.<String, Object>of("associations", "transactions")));
+        Long waiveTransactionId = loanDetails.getTransactions().stream()
+                .filter(t -> "loanTransactionType.waiveCharges".equals(t.getType().getCode())).map(GetLoansLoanIdTransactions::getId)
+                .findFirst().orElseThrow(() -> new IllegalStateException("Waiver transaction not found on loan " + loanId));
+
+        PostLoansLoanIdTransactionsTransactionIdRequest undoRequest = loanRequestFactory.defaultRepaymentUndoRequest()
+                .transactionDate(transactionDate).dateFormat(DATE_FORMAT).locale(DEFAULT_LOCALE);
+
+        ok(() -> fineractClient.loanTransactions().adjustLoanTransaction(loanId, waiveTransactionId, undoRequest,
+                Map.<String, Object>of()));
+        testContext().set(ADJUSTED_TRANSACTION_ID, waiveTransactionId);
+        log.info("Waiver transaction {} reversed on loan {} (for originator event verification)", waiveTransactionId, loanId);
+    }
+
+    // --- Originator event verification steps ---
+
+    @Then("LoanAdjustTransactionBusinessEvent is created with originator details in {string}")
+    public void verifyOriginatorInAdjustEvent(String nestedField) {
+        long loanId = getLoanId();
+        Long adjustedTransactionId = testContext().get(ADJUSTED_TRANSACTION_ID);
+        String expectedExternalId = testContext().get(TestContextKey.ORIGINATOR_EXTERNAL_ID);
+
+        eventAssertion.assertEvent(LoanAdjustTransactionBusinessEvent.class, adjustedTransactionId).extractingData(adjustmentData -> {
+            LoanTransactionDataV1 nested = resolveAdjustmentField(adjustmentData, nestedField);
+            assertThat(nested).as("Field '%s' in LoanAdjustTransactionBusinessEvent", nestedField).isNotNull();
+
+            List<OriginatorDetailsV1> originators = nested.getOriginators();
+            assertThat(originators).as("Originators in %s should not be null or empty", nestedField).isNotNull().isNotEmpty();
+            assertThat(originators.get(0).getExternalId()).as("Originator externalId in %s", nestedField).isEqualTo(expectedExternalId);
+            assertThat(originators.get(0).getStatus()).as("Originator status in %s", nestedField).isEqualTo("ACTIVE");
+            return adjustmentData.getTransactionToAdjust().getId();
+        }).isEqualTo(adjustedTransactionId);
+        log.info("Verified originator {} in LoanAdjustTransactionBusinessEvent.{} for loan {}", expectedExternalId, nestedField, loanId);
+    }
+
+    @Then("LoanAdjustTransactionBusinessEvent is created without originator details in {string}")
+    public void verifyNoOriginatorInAdjustEvent(String nestedField) {
+        Long adjustedTransactionId = testContext().get(ADJUSTED_TRANSACTION_ID);
+
+        eventAssertion.assertEvent(LoanAdjustTransactionBusinessEvent.class, adjustedTransactionId).extractingData(adjustmentData -> {
+            LoanTransactionDataV1 nested = resolveAdjustmentField(adjustmentData, nestedField);
+            assertThat(nested).as("Field '%s' in LoanAdjustTransactionBusinessEvent", nestedField).isNotNull();
+
+            List<OriginatorDetailsV1> originators = nested.getOriginators();
+            assertThat(originators).as("Originators in %s should be null or empty", nestedField).isNullOrEmpty();
+            return adjustmentData.getTransactionToAdjust().getId();
+        }).isEqualTo(adjustedTransactionId);
+        log.info("Verified no originators in LoanAdjustTransactionBusinessEvent.{}", nestedField);
+    }
+
+    @Then("LoanAccrualTransactionCreatedBusinessEvent is created with originator details on {string}")
+    public void verifyOriginatorInAccrualEvent(String date) {
+        long loanId = getLoanId();
+        String expectedExternalId = testContext().get(TestContextKey.ORIGINATOR_EXTERNAL_ID);
+
+        GetLoansLoanIdResponse loanDetails = ok(() -> fineractClient.loans().retrieveLoan(loanId,
+                Map.of("staffInSelectedOfficeOnly", "false", "associations", "transactions")));
+        GetLoansLoanIdTransactions accrualTransaction = loanDetails.getTransactions().stream()
+                .filter(t -> date.equals(FORMATTER.format(t.getDate())) && "Accrual".equals(t.getType().getValue()))
+                .reduce((first, second) -> second)
+                .orElseThrow(() -> new IllegalStateException(String.format("No Accrual transaction found on %s", date)));
+
+        eventAssertion.assertEvent(LoanAccrualTransactionCreatedBusinessEvent.class, accrualTransaction.getId())
+                .extractingData(loanTransactionDataV1 -> {
+                    List<OriginatorDetailsV1> originators = loanTransactionDataV1.getOriginators();
+                    assertThat(originators).as("Originators in LoanAccrualTransactionCreatedBusinessEvent should not be null or empty")
+                            .isNotNull().isNotEmpty();
+                    assertThat(originators.get(0).getExternalId()).as("Originator externalId in LoanAccrualTransactionCreatedBusinessEvent")
+                            .isEqualTo(expectedExternalId);
+                    assertThat(originators.get(0).getStatus()).as("Originator status in LoanAccrualTransactionCreatedBusinessEvent")
+                            .isEqualTo("ACTIVE");
+                    return loanTransactionDataV1.getId();
+                }).isEqualTo(accrualTransaction.getId());
+        log.info("Verified originator {} in LoanAccrualTransactionCreatedBusinessEvent on {} for loan {}", expectedExternalId, date,
+                loanId);
+    }
+
+    private LoanTransactionDataV1 resolveAdjustmentField(LoanTransactionAdjustmentDataV1 data, String field) {
+        return switch (field) {
+            case "transactionToAdjust" -> data.getTransactionToAdjust();
+            case "newTransactionDetail" -> data.getNewTransactionDetail();
+            default -> throw new IllegalArgumentException("Unknown adjustment field: " + field);
+        };
+    }
+
+    @Then("LoanRepaymentDueBusinessEvent is created with originator details")
+    public void verifyOriginatorInRepaymentDueEvent() {
+        final long loanId = getLoanId();
+        final String expectedExternalId = testContext().get(TestContextKey.ORIGINATOR_EXTERNAL_ID);
+
+        eventAssertion.assertEvent(LoanRepaymentDueEvent.class, loanId).extractingData(loanRepaymentDueDataV1 -> {
+            final List<OriginatorDetailsV1> originators = loanRepaymentDueDataV1.getOriginators();
+            assertThat(originators).as("Originators in LoanRepaymentDueBusinessEvent").isNotNull().hasSize(1);
+            final OriginatorDetailsV1 originator = originators.getFirst();
+            assertThat(originator.getId()).as("Originator id in LoanRepaymentDueBusinessEvent").isNotNull();
+            assertThat(originator.getExternalId()).as("Originator externalId in LoanRepaymentDueBusinessEvent")
+                    .isEqualTo(expectedExternalId);
+            assertThat(originator.getStatus()).as("Originator status in LoanRepaymentDueBusinessEvent").isEqualTo("ACTIVE");
+            return (Long) loanRepaymentDueDataV1.getLoanId();
+        }).isEqualTo(loanId);
+        log.info("Verified originator {} in LoanRepaymentDueBusinessEvent for loan {}", expectedExternalId, loanId);
+    }
+
+    @Then("LoanRepaymentDueBusinessEvent is created without originator details")
+    public void verifyNoOriginatorInRepaymentDueEvent() {
+        final long loanId = getLoanId();
+
+        eventAssertion.assertEvent(LoanRepaymentDueEvent.class, loanId).extractingData(loanRepaymentDueDataV1 -> {
+            final List<OriginatorDetailsV1> originators = loanRepaymentDueDataV1.getOriginators();
+            assertThat(originators).as("Originators in LoanRepaymentDueBusinessEvent should be null or empty").isNullOrEmpty();
+            return (Long) loanRepaymentDueDataV1.getLoanId();
+        }).isEqualTo(loanId);
+        log.info("Verified no originators in LoanRepaymentDueBusinessEvent for loan {}", loanId);
+    }
+
+    @Then("LoanRepaymentDueBusinessEvent is created with {int} originator details")
+    public void verifyMultipleOriginatorsInRepaymentDueEvent(final int expectedCount) {
+        final long loanId = getLoanId();
+        final String expectedExternalId = testContext().get(TestContextKey.ORIGINATOR_EXTERNAL_ID);
+        final String expectedSecondExternalId = testContext().get(TestContextKey.ORIGINATOR_SECOND_EXTERNAL_ID);
+
+        eventAssertion.assertEvent(LoanRepaymentDueEvent.class, loanId).extractingData(loanRepaymentDueDataV1 -> {
+            final List<OriginatorDetailsV1> originators = loanRepaymentDueDataV1.getOriginators();
+            assertThat(originators).as("Originators in LoanRepaymentDueBusinessEvent should not be null or empty").isNotNull().isNotEmpty();
+            assertThat(originators).as("Originators count in LoanRepaymentDueBusinessEvent").hasSize(expectedCount);
+            assertThat(originators).extracting(OriginatorDetailsV1::getExternalId)
+                    .as("Originator externalIds in LoanRepaymentDueBusinessEvent")
+                    .containsExactlyInAnyOrder(expectedExternalId, expectedSecondExternalId);
+            return (Long) loanRepaymentDueDataV1.getLoanId();
+        }).isEqualTo(loanId);
+        log.info("Verified {} originators in LoanRepaymentDueBusinessEvent for loan {}", expectedCount, loanId);
+    }
+
+    @Then("LoanDelinquencyRangeChangeEvent is created with originator details")
+    public void verifyOriginatorInDelinquencyRangeEvent() {
+        final long loanId = getLoanId();
+        final String expectedExternalId = testContext().get(TestContextKey.ORIGINATOR_EXTERNAL_ID);
+
+        eventAssertion.assertEvent(LoanDelinquencyRangeChangeEvent.class, loanId).extractingData(loanAccountDelinquencyRangeDataV1 -> {
+            final List<OriginatorDetailsV1> originators = loanAccountDelinquencyRangeDataV1.getOriginators();
+            assertThat(originators).as("Originators in LoanDelinquencyRangeChangeEvent").isNotNull().hasSize(1);
+            final OriginatorDetailsV1 originator = originators.getFirst();
+            assertThat(originator.getId()).as("Originator id in LoanDelinquencyRangeChangeEvent").isNotNull();
+            assertThat(originator.getExternalId()).as("Originator externalId in LoanDelinquencyRangeChangeEvent")
+                    .isEqualTo(expectedExternalId);
+            assertThat(originator.getStatus()).as("Originator status in LoanDelinquencyRangeChangeEvent").isEqualTo("ACTIVE");
+            return loanAccountDelinquencyRangeDataV1.getLoanId();
+        }).isEqualTo(loanId);
+        log.info("Verified originator {} in LoanDelinquencyRangeChangeEvent for loan {}", expectedExternalId, loanId);
+    }
+
+    @Then("LoanDelinquencyRangeChangeEvent is created without originator details")
+    public void verifyNoOriginatorInDelinquencyRangeEvent() {
+        final long loanId = getLoanId();
+
+        eventAssertion.assertEvent(LoanDelinquencyRangeChangeEvent.class, loanId).extractingData(loanAccountDelinquencyRangeDataV1 -> {
+            final List<OriginatorDetailsV1> originators = loanAccountDelinquencyRangeDataV1.getOriginators();
+            assertThat(originators).as("Originators in LoanDelinquencyRangeChangeEvent should be null or empty").isNullOrEmpty();
+            return loanAccountDelinquencyRangeDataV1.getLoanId();
+        }).isEqualTo(loanId);
+        log.info("Verified no originators in LoanDelinquencyRangeChangeEvent for loan {}", loanId);
+    }
+
+    @Then("LoanDelinquencyRangeChangeEvent is created with {int} originator details")
+    public void verifyMultipleOriginatorsInDelinquencyRangeEvent(final int expectedCount) {
+        final long loanId = getLoanId();
+        final String expectedExternalId = testContext().get(TestContextKey.ORIGINATOR_EXTERNAL_ID);
+        final String expectedSecondExternalId = testContext().get(TestContextKey.ORIGINATOR_SECOND_EXTERNAL_ID);
+
+        eventAssertion.assertEvent(LoanDelinquencyRangeChangeEvent.class, loanId).extractingData(loanAccountDelinquencyRangeDataV1 -> {
+            final List<OriginatorDetailsV1> originators = loanAccountDelinquencyRangeDataV1.getOriginators();
+            assertThat(originators).as("Originators in LoanDelinquencyRangeChangeEvent should not be null or empty").isNotNull()
+                    .isNotEmpty();
+            assertThat(originators).as("Originators count in LoanDelinquencyRangeChangeEvent").hasSize(expectedCount);
+            assertThat(originators).extracting(OriginatorDetailsV1::getExternalId)
+                    .as("Originator externalIds in LoanDelinquencyRangeChangeEvent")
+                    .containsExactlyInAnyOrder(expectedExternalId, expectedSecondExternalId);
+            return loanAccountDelinquencyRangeDataV1.getLoanId();
+        }).isEqualTo(loanId);
+        log.info("Verified {} originators in LoanDelinquencyRangeChangeEvent for loan {}", expectedCount, loanId);
+    }
+
+    @Then("LoanAccountDelinquencyRangeDataV1 has the same data for Originators as in loanDetails")
+    public void checkOriginatorsInLoanAccountDelinquencyRangeDataV1() {
+        final long loanId = getLoanId();
+        final List<GetLoansLoanIdOriginatorData> expectedOriginators = retrieveLoanOriginators(loanId, "originators");
+
+        eventAssertion.assertEvent(LoanDelinquencyRangeChangeEvent.class, loanId)//
+                .extractingData(eventData -> {
+                    assertOriginatorsMatch(expectedOriginators, eventData.getOriginators(), "LoanDelinquencyRangeChangeEvent");
+                    return null;
+                });
+    }
+
+    @Then("LoanRepaymentDueDataV1 has the same data for Originators as in loanDetails")
+    public void checkOriginatorsInLoanRepaymentDueDataV1() {
+        final long loanId = getLoanId();
+        final List<GetLoansLoanIdOriginatorData> expectedOriginators = retrieveLoanOriginators(loanId, "originators");
+
+        eventAssertion.assertEvent(LoanRepaymentDueEvent.class, loanId)//
+                .extractingData(eventData -> {
+                    assertOriginatorsMatch(expectedOriginators, eventData.getOriginators(), "LoanRepaymentDueEvent");
+                    return null;
+                });
+    }
+
     // --- Helper methods ---
 
     private long getLoanId() {
@@ -659,5 +915,34 @@ public class LoanOriginationStepDef extends AbstractStepDef {
         return FineractFeignClient.builder().baseUrl(apiBaseUrl).credentials(username, password).tenantId(apiProperties.getTenantId())
                 .disableSslVerification(true).connectTimeout(60, TimeUnit.SECONDS)
                 .readTimeout((int) apiProperties.getReadTimeout(), TimeUnit.SECONDS).build();
+    }
+
+    private void assertOriginatorsMatch(List<GetLoansLoanIdOriginatorData> expectedOriginators, List<OriginatorDetailsV1> actualOriginators,
+            String eventType) {
+        final boolean expectedEmpty = expectedOriginators == null || expectedOriginators.isEmpty();
+        final boolean actualEmpty = actualOriginators == null || actualOriginators.isEmpty();
+
+        if (expectedEmpty && actualEmpty) {
+            return;
+        }
+
+        assertThat(actualEmpty).as("Originators in %s should have same empty/non-empty state as loan details", eventType)
+                .isEqualTo(expectedEmpty);
+
+        assertThat(actualOriginators).as("Number of originators in %s should match loan details", eventType)
+                .hasSameSizeAs(expectedOriginators);
+
+        for (int i = 0; i < expectedOriginators.size(); i++) {
+            assertOriginatorFieldsMatch(expectedOriginators.get(i), actualOriginators.get(i), i, eventType);
+        }
+    }
+
+    private void assertOriginatorFieldsMatch(GetLoansLoanIdOriginatorData expected, OriginatorDetailsV1 actual, int index,
+            String eventType) {
+        assertThat(actual.getId()).as("Originator ID at index %d in %s", index, eventType).isEqualTo(expected.getId());
+        assertThat(actual.getExternalId()).as("Originator externalId at index %d in %s", index, eventType)
+                .isEqualTo(expected.getExternalId());
+        assertThat(actual.getName()).as("Originator name at index %d in %s", index, eventType).isEqualTo(expected.getName());
+        assertThat(actual.getStatus()).as("Originator status at index %d in %s", index, eventType).isEqualTo(expected.getStatus());
     }
 }

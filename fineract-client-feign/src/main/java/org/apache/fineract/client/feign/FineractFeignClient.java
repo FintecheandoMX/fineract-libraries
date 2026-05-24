@@ -83,6 +83,7 @@ import org.apache.fineract.client.feign.services.InterOperationApi;
 import org.apache.fineract.client.feign.services.InterestRateChartApi;
 import org.apache.fineract.client.feign.services.InterestRateSlabAKAInterestBandsApi;
 import org.apache.fineract.client.feign.services.InternalCobApi;
+import org.apache.fineract.client.feign.services.InternalWorkingCapitalLoansApi;
 import org.apache.fineract.client.feign.services.JournalEntriesApi;
 import org.apache.fineract.client.feign.services.LikelihoodApi;
 import org.apache.fineract.client.feign.services.ListReportMailingJobHistoryApi;
@@ -150,13 +151,19 @@ import org.apache.fineract.client.feign.services.SurveyApi;
 import org.apache.fineract.client.feign.services.TaxComponentsApi;
 import org.apache.fineract.client.feign.services.TaxGroupApi;
 import org.apache.fineract.client.feign.services.TellerCashManagementApi;
+import org.apache.fineract.client.feign.services.TemplatesApi;
 import org.apache.fineract.client.feign.services.TwoFactorApi;
-import org.apache.fineract.client.feign.services.UserGeneratedDocumentsApi;
 import org.apache.fineract.client.feign.services.UsersApi;
+import org.apache.fineract.client.feign.services.WorkingCapitalBreachApi;
+import org.apache.fineract.client.feign.services.WorkingCapitalLoanAccountLockApi;
+import org.apache.fineract.client.feign.services.WorkingCapitalLoanBreachScheduleApi;
 import org.apache.fineract.client.feign.services.WorkingCapitalLoanCobCatchUpApi;
+import org.apache.fineract.client.feign.services.WorkingCapitalLoanDelinquencyActionsApi;
+import org.apache.fineract.client.feign.services.WorkingCapitalLoanDelinquencyRangeScheduleApi;
 import org.apache.fineract.client.feign.services.WorkingCapitalLoanProductsApi;
 import org.apache.fineract.client.feign.services.WorkingCapitalLoanTransactionsApi;
 import org.apache.fineract.client.feign.services.WorkingCapitalLoansApi;
+import org.apache.fineract.client.feign.services.WorkingCapitalNearBreachApi;
 import org.apache.fineract.client.feign.services.WorkingDaysApi;
 
 /**
@@ -738,8 +745,8 @@ public final class FineractFeignClient {
         return create(TwoFactorApi.class);
     }
 
-    public UserGeneratedDocumentsApi userGeneratedDocuments() {
-        return create(UserGeneratedDocumentsApi.class);
+    public TemplatesApi templates() {
+        return create(TemplatesApi.class);
     }
 
     public UsersApi users() {
@@ -750,8 +757,28 @@ public final class FineractFeignClient {
         return create(WorkingCapitalLoanProductsApi.class);
     }
 
+    public WorkingCapitalLoanAccountLockApi workingCapitalLoanAccountLock() {
+        return create(WorkingCapitalLoanAccountLockApi.class);
+    }
+
     public WorkingCapitalLoanCobCatchUpApi workingCapitalLoanCobCatchUpApi() {
         return create(WorkingCapitalLoanCobCatchUpApi.class);
+    }
+
+    public WorkingCapitalLoanDelinquencyActionsApi workingCapitalLoanDelinquencyActions() {
+        return create(WorkingCapitalLoanDelinquencyActionsApi.class);
+    }
+
+    public WorkingCapitalLoanDelinquencyRangeScheduleApi workingCapitalLoanDelinquencyRangeSchedule() {
+        return create(WorkingCapitalLoanDelinquencyRangeScheduleApi.class);
+    }
+
+    public WorkingCapitalLoanBreachScheduleApi workingCapitalLoanBreachSchedule() {
+        return create(WorkingCapitalLoanBreachScheduleApi.class);
+    }
+
+    public InternalWorkingCapitalLoansApi internalWorkingCapitalLoans() {
+        return create(InternalWorkingCapitalLoansApi.class);
     }
 
     public WorkingCapitalLoansApi workingCapitalLoans() {
@@ -760,6 +787,14 @@ public final class FineractFeignClient {
 
     public WorkingCapitalLoanTransactionsApi workingCapitalLoanTransactions() {
         return create(WorkingCapitalLoanTransactionsApi.class);
+    }
+
+    public WorkingCapitalBreachApi workingCapitalBreaches() {
+        return create(WorkingCapitalBreachApi.class);
+    }
+
+    public WorkingCapitalNearBreachApi workingCapitalNearBreaches() {
+        return create(WorkingCapitalNearBreachApi.class);
     }
 
     public WorkingDaysApi workingDays() {

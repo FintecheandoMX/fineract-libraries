@@ -151,6 +151,9 @@ public class CommandStrategyProvider {
                 .method(POST).build(), "savingsAccountAdjustTransactionCommandStrategy");
         commandStrategies.put(CommandContext.resource("v1\\/savingsaccounts\\/" + NUMBER_REGEX + "\\/charges").method(POST).build(),
                 "createSavingsAccountChargeCommandStrategy");
+        commandStrategies.put(CommandContext
+                .resource("v1\\/savingsaccounts\\/" + NUMBER_REGEX + "\\/charges\\/" + NUMBER_REGEX + MANDATORY_COMMAND_PARAM_REGEX)
+                .method(POST).build(), "paySavingsAccountChargeCommandStrategy");
         commandStrategies.put(CommandContext.resource("v1\\/loans\\/" + NUMBER_REGEX + "\\/charges").method(POST).build(),
                 "createChargeCommandStrategy");
         commandStrategies.put(
@@ -190,12 +193,16 @@ public class CommandStrategyProvider {
                 "approveLoanCommandStrategy");
         commandStrategies.put(CommandContext.resource("v1\\/loans\\/" + NUMBER_REGEX + "\\?command=disburse").method(POST).build(),
                 "disburseLoanCommandStrategy");
+        commandStrategies.put(CommandContext.resource("v1\\/loans\\/" + NUMBER_REGEX + "\\?command=disburseToSavings").method(POST).build(),
+                "disburseToSavingsCommandStrategy");
         commandStrategies.put(CommandContext.resource("v1\\/loans\\/external-id\\/" + UUID_PARAM_REGEX + MANDATORY_COMMAND_PARAM_REGEX)
                 .method(POST).build(), "loanStateTransistionsByExternalIdCommandStrategy");
         commandStrategies.put(CommandContext.resource("v1\\/rescheduleloans").method(POST).build(),
                 "createLoanRescheduleRequestCommandStrategy");
         commandStrategies.put(CommandContext.resource("v1\\/rescheduleloans\\/" + NUMBER_REGEX + "\\?command=approve").method(POST).build(),
                 "approveLoanRescheduleCommandStrategy");
+        commandStrategies.put(CommandContext.resource("v1\\/rescheduleloans\\/" + NUMBER_REGEX + "\\?command=reject").method(POST).build(),
+                "rejectLoanRescheduleCommandStrategy");
         commandStrategies.put(
                 CommandContext.resource("v1\\/loans\\/" + NUMBER_REGEX + "\\/transactions\\/" + NUMBER_REGEX).method(GET).build(),
                 "getLoanTransactionByIdCommandStrategy");
@@ -252,6 +259,8 @@ public class CommandStrategyProvider {
         commandStrategies.put(CommandContext
                 .resource("v1\\/loans\\/external-id\\/" + UUID_PARAM_REGEX + "\\/interest-pauses\\/" + NUMBER_REGEX).method(PUT).build(),
                 "updateLoanInterestPauseByExternalIdCommandStrategy");
+        commandStrategies.put(CommandContext.resource("v1\\/accounttransfers").method(POST).build(),
+                "createAccountTransferCommandStrategy");
     }
 
 }
